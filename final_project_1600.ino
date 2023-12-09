@@ -19,8 +19,8 @@ bool goalLightsOn = true;
 Servo myServo;
 
 // State Management
-enum State { LIGHTS_OFF_WAIT, LIGHTS_ON_WAIT };
-State currentState = LIGHTS_ON_WAIT;
+enum State { LIGHTS_OFF_WAIT, LIGHTS_ON_WAIT, VERIFY_LIGHT_STATUS };
+State currentState = VERIFY_LIGHT_STATUS;
 
 void setup() {
   Serial.begin(9600);
@@ -37,6 +37,17 @@ void loop() {
   int lightAmt = analogRead(photoresistorPin);
 
   switch (currentState) {
+    case VERIFY_LIGHT_STATUS:
+      if (lightAmt > lightThreshold) {
+        currentState = LIGHTS_ON_WAIT;
+        goalLightsOn = true;
+        Serial.println("Transition to LIGHTS_ON_WAIT");
+      } else {
+        currentState = LIGHTS_OFF_WAIT;
+        goalLightsOn = false;
+        Serial.println("Transition to LIGHTS_OFF_WAIT");
+      }
+      break;
     case LIGHTS_OFF_WAIT:
       if (shouldTurnOnLights(lightAmt)) {
         currentState = LIGHTS_ON_WAIT;
@@ -66,7 +77,6 @@ void loop() {
 
   delay(50);
 }
-
 
 void PressSwitch() {
   Serial.println("Pressing the switch...");
