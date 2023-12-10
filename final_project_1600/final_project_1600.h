@@ -4,17 +4,33 @@
 #include <WiFi101.h>
 #include <WiFiUdp.h>
 
+enum State { LIGHTS_OFF_WAIT, LIGHTS_ON_WAIT, VERIFY_LIGHT_STATUS, PRESS_BUTTON };
+
+/*
+ * A struct to keep all three state inputs in one place
+ */
+typedef struct {
+  int light_amt;
+  bool claps;
+} state_inputs;
+
+
 // Function Declarations
 void initializeWifi();
 void connectToNTP();
 void handleWiFiClient();
 void sendResponseToClient(WiFiClient &client);
 void printWiFiStatus();
+State updateFSM(State currentState, state_inputs inputs);
+state_inputs updateInputs();
 
 String getCurrentTime();
 String urlDecode(String str);
 
 unsigned long sendNTPpacket(IPAddress& address);
+
+
+
 
 
 
