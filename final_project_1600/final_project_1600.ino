@@ -2,18 +2,20 @@
 #include "final_project_1600.h"
 
 // Light and Sound Sensor Variables
-const int lightThreshold = 500;
+const int lightThreshold = 400;
 const int bufferSize =  30;
 const int clapThreshold = 700;
 const int photoresistorPin = A1;
 const int micPin = A0;
-const int servoPin = 6;
+const int servoPin = 8;
 const int mosfetGatePin = 7;
+const int buttonPin = 0;
 
 // Mic Variables
 int micReadings[bufferSize] = {0};
 int idx = 0;
 bool goalLightsOn = true;
+bool systemOn = true;
 
 // Servo
 Servo myServo;
@@ -27,18 +29,26 @@ void setup() {
   delay(1000);
   initializeComponents();
   initializeWDT();
-  initializeWifi();
+  initializeWifi(); 
   connectToNTP();
   printWiFiStatus();
+
+  pinMode(buttonPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(buttonPin), buttonPressed, FALLING);
 }
 
 void loop() {
   WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY;
-  
-  handleWiFiClient();
-  int lightAmt = analogRead(photoresistorPin);
-  state_inputs inputs = updateInputs();
-  currentState = updateFSM(currentState, inputs);
+  if(systemOn) {
+    handleWiFiClient();
+    int lightAmt = analogRead(photoresistorPin);
+    state_inputs inputs = updateInputs();
+    currentState = updateFSM(currentState, inputs);
+  } 
+  if(!systemOn) {
+    Serial.println("System Off");
+    delay(2000);
+  }
 }
 
 state_inputs updateInputs() {
@@ -112,9 +122,9 @@ State updateFSM(State currentState, state_inputs inputs) {
 void PressSwitch() {
   Serial.println("Pressing the switch...");
   digitalWrite(mosfetGatePin, HIGH); // Turn on MOSFET
-  myServo.write(0);
+  myServo.write(30);
   delay(500);
-  myServo.write(180);
+  myServo.write(0);
   delay(500);
   digitalWrite(mosfetGatePin, LOW); // Turn off MOSFET
   Serial.println("Switch pressed.");
@@ -135,39 +145,6 @@ int timeStringToMinutes(String timeStr) {
   return hour * 60 + minute;
 }
 
-// bool shouldTurnOnLights(int lightAmt) {
-//     int currentTimeInMinutes = timeStringToMinutes(getCurrentTime());
-//     int wakeupTimeInMinutes = timeStringToMinutes(wakeup_time);
-
-//     if (currentTimeInMinutes == wakeupTimeInMinutes) {
-//         Serial.println(currentTimeInMinutes);
-//         Serial.println(wakeupTimeInMinutes);
-//         Serial.println("Turning on lights because it's wakeup time.");
-//         return true;
-//     } else if (goalLightsOn && (lightAmt < lightThreshold)) {
-//         Serial.println("Turning on lights because it's dark and goal is to have lights on.");
-//         return true;
-//     }
-//     return false;
-// }
-
-// bool shouldTurnOffLights(int lightAmt) {
-//     int currentTimeInMinutes = timeStringToMinutes(getCurrentTime());
-//     int sleepTimeInMinutes = timeStringToMinutes(sleep_time);
-
-//     if (currentTimeInMinutes == sleepTimeInMinutes) {
-//         Serial.println(currentTimeInMinutes);
-//         Serial.println(sleepTimeInMinutes);
-//         Serial.println("Turning off lights because it's sleep time.");
-//         return true;
-//     } else if (!goalLightsOn && (lightAmt > lightThreshold)) {
-//         Serial.println("Turning off lights because it's bright enough and goal is to have lights off.");
-//         return true;
-//     }
-//     return false;
-// }
-
-
 bool twoClaps() {
   int clapCount = 0;
   for (int i = 0; i < bufferSize - 1; i++) {
@@ -175,9 +152,6 @@ bool twoClaps() {
       clapCount++;
     }
   }
-  // if (clapCount == 1) {
-  //   Serial.println("one claps detected.");
-  // }
   if (clapCount >= 2) {
     resetBuffer();
     Serial.println("Two claps detected.");
@@ -200,7 +174,7 @@ void initializeComponents() {
   pinMode(mosfetGatePin, OUTPUT);
   digitalWrite(mosfetGatePin, LOW);
   myServo.attach(servoPin);
-  myServo.write(0);
+  myServo.write(30);
 }
 
 void initializeWDT() {
@@ -238,4 +212,6 @@ void WDT_Handler() {
   Serial.println("Watchdog timer interrupt triggered!");
 }
 
-
+void buttonPressed() {
+  systemOn = !systemOn;
+}
