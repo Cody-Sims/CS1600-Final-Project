@@ -14,10 +14,13 @@ IPAddress timeServer(129, 6, 15, 28);
 unsigned int localPort = 2390;   
 
 
-// Initialize WiFi connection
+
+/**
+ *  Initialize WiFi connection
+ */
 void initializeWifi() {
-  char ssid[] = "Brown-Guest"; // Replace with your WiFi network name
-  WiFi.begin(ssid); // Use WiFi.begin(ssid, pass) if a password is required
+  char ssid[] = "Brown-Guest";
+  WiFi.begin(ssid);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -26,7 +29,11 @@ void initializeWifi() {
   Udp.begin(localPort);
 }
 
-// Connect to an NTP server and request time
+
+
+/**
+ * Connect to an NTP server and request time
+ */
 void connectToNTP() {
   sendNTPpacket(timeServer); // Send an NTP packet to the server
   // Wait for a response
@@ -34,7 +41,7 @@ void connectToNTP() {
   while (millis() - startWait < 1500) {
     int size = Udp.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
-      Udp.read(packetBuffer, NTP_PACKET_SIZE); // Read the packet
+      Udp.read(packetBuffer, NTP_PACKET_SIZE);
       unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
       unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
       secsSince1900 = highWord << 16 | lowWord;
@@ -43,26 +50,29 @@ void connectToNTP() {
   }
 }
 
-// Send an NTP request to the server
+
+/**
+ * Send an NTP request to the server
+ */
 unsigned long sendNTPpacket(IPAddress& address) {
-  // Set all bytes in the buffer to 0
   memset(packetBuffer, 0, NTP_PACKET_SIZE);
-  // Initialize values needed for NTP request
-  packetBuffer[0] = 0b11100011; // LI, Version, Mode
-  packetBuffer[1] = 0; // Stratum
-  packetBuffer[2] = 6; // Polling Interval
-  packetBuffer[3] = 0xEC; // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
+  packetBuffer[0] = 0b11100011; 
+  packetBuffer[1] = 0; 
+  packetBuffer[2] = 6;
+  packetBuffer[3] = 0xEC;
   packetBuffer[12] = 49;
   packetBuffer[13] = 0x4E;
   packetBuffer[14] = 49;
   packetBuffer[15] = 52;
-  // Send a packet requesting a timestamp
-  Udp.beginPacket(address, 123); // NTP requests are sent to port 123
+  Udp.beginPacket(address, 123)
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }
 
+
+/**
+ * Used to handle the wifi client
+ */
 void handleWiFiClient() {
   WiFiClient client = server.available();
   if (client) {
@@ -95,6 +105,9 @@ void handleWiFiClient() {
   }
 }
 
+/**
+ * Prints the Status of the wifi to determine the IP the server is running on
+ */
 void printWiFiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -142,9 +155,9 @@ void sendResponseToClient(WiFiClient &client) {
   client.println("</body></html>");
 }
 
-
-
-// Convert NTP time to a human-readable format
+/**
+ * Convert NTP time to a human-readable format
+ */
 String getCurrentTime() {
   unsigned long epoch = secsSince1900 + (millis() / 1000) - 2208988800UL;
   epoch -= 5 * 3600;
@@ -155,6 +168,11 @@ String getCurrentTime() {
   return hourStr + ":" + minuteStr;
 }
 
+/**
+ * Decodes the URL, so it can be used to set the wakeup and sleep times. 
+ *
+ * @param str a url
+ */
 String urlDecode(String str) {
     String decodedString = "";
     for (int i = 0; i < str.length(); i++) {

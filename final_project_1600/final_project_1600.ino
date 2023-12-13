@@ -32,9 +32,6 @@ void setup() {
   initializeWifi(); 
   connectToNTP();
   printWiFiStatus();
-
-  pinMode(buttonPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(buttonPin), buttonPressed, FALLING);
 }
 
 void loop() {
@@ -51,6 +48,11 @@ void loop() {
   }
 }
 
+/**
+ * Updates Sensor Inputs including clap detection, light amount, and mic buffer
+ * 
+ * @return the updated state inputs
+ */
 state_inputs updateInputs() {
   state_inputs newInputs;
   newInputs.light_amt = analogRead(photoresistorPin);
@@ -60,6 +62,13 @@ state_inputs updateInputs() {
 }
 
 
+/**
+ * Updates the FSM
+ * 
+ * @param currentState The current state of the FSM
+ * @param inputs The state inputs of the fsm
+ * @return the next state
+ */
 State updateFSM(State currentState, state_inputs inputs) {
   State nextState = currentState;
   switch (currentState) {
@@ -119,6 +128,9 @@ State updateFSM(State currentState, state_inputs inputs) {
   return nextState;
 }
 
+/**
+ * Presses the switch
+ */
 void PressSwitch() {
   Serial.println("Pressing the switch...");
   digitalWrite(mosfetGatePin, HIGH); // Turn on MOSFET
@@ -130,21 +142,33 @@ void PressSwitch() {
   Serial.println("Switch pressed.");
 }
 
+/**
+ * Updates the Mic Reading buffer
+ * 
+ * @param decibel the reading retrieved from the microphone
+ */
 void updateMicReading(int decibel) {
   micReadings[idx] = decibel;
   idx = (idx + 1) % bufferSize;
-  // if (decibel > clapThreshold) {
-  //   Serial.println(decibel);
-  // }
 }
 
-// Convert a time string to minutes since midnight
+/**
+ * Converts the Time string to minutes
+ * 
+ * @param timeStr the time represented as a string
+ */
 int timeStringToMinutes(String timeStr) {
   int hour = timeStr.substring(0, 2).toInt();
   int minute = timeStr.substring(3, 5).toInt();
   return hour * 60 + minute;
 }
 
+
+/**
+ * Readds through the micReadings buffer to determine if two claps have been detected
+ * 
+ * @return a boolean for clap detection 
+ */
 bool twoClaps() {
   int clapCount = 0;
   for (int i = 0; i < bufferSize - 1; i++) {
@@ -160,6 +184,9 @@ bool twoClaps() {
   return false;
 }
 
+/**
+ * Resets the microphone buffer
+ */
 void resetBuffer() {
   for (int i = 0; i < bufferSize; i++) {
     micReadings[i] = 0;
@@ -168,15 +195,24 @@ void resetBuffer() {
   Serial.println("Microphone buffer reset.");
 }
 
+
+/**
+ * Initializes the components
+ */
 void initializeComponents() {
   pinMode(photoresistorPin, INPUT);
   pinMode(micPin, INPUT);
   pinMode(mosfetGatePin, OUTPUT);
+  pinMode(buttonPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(buttonPin), buttonPressed, FALLING);
   digitalWrite(mosfetGatePin, LOW);
   myServo.attach(servoPin);
   myServo.write(30);
 }
 
+/**
+ * Initializes the Watchdog Timer
+ */
 void initializeWDT() {
   // Initialize WDT
   NVIC_DisableIRQ(WDT_IRQn);
@@ -199,19 +235,24 @@ void initializeWDT() {
                       GCLK_CLKCTRL_ID(3);
 
   // Configure and enable WDT
-  WDT->CONFIG.reg = WDT_CONFIG_PER(11);
-  WDT->EWCTRL.reg = WDT_EWCTRL_EWOFFSET(10);
+  WDT->CONFIG.reg = WDT_CONFIG_PER(12);
+  WDT->EWCTRL.reg = WDT_EWCTRL_EWOFFSET(11);
   WDT->CTRL.reg = WDT_CTRL_ENABLE;
   WDT->INTENSET.reg = WDT_INTENSET_EW; // Enable early warning interrupt
 }
 
-// WDT interrupt service routine
+/**
+ * Watch Dog Service Routine handler
+ */
 void WDT_Handler() {
   // Clear interrupt register flag
   WDT->INTFLAG.reg = WDT_INTFLAG_EW;
   Serial.println("Watchdog timer interrupt triggered!");
 }
 
+/**
+ * The interrupt for the Button
+ */
 void buttonPressed() {
   systemOn = !systemOn;
 }
