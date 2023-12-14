@@ -64,7 +64,7 @@ unsigned long sendNTPpacket(IPAddress& address) {
   packetBuffer[13] = 0x4E;
   packetBuffer[14] = 49;
   packetBuffer[15] = 52;
-  Udp.beginPacket(address, 123)
+  Udp.beginPacket(address, 123);
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }

@@ -55,6 +55,7 @@ void loop() {
     Serial.println("System Off");
     delay(2000);
   }
+#endif
 }
 
 /**
