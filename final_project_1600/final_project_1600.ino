@@ -1,5 +1,6 @@
 #include <Servo.h>
 #include "final_project_1600.h"
+#define TESTING
 
 // Light and Sound Sensor Variables
 const int lightThreshold = 500;
@@ -25,20 +26,28 @@ State currentState = VERIFY_LIGHT_STATUS;
 void setup() {
   Serial.begin(9600);
   delay(1000);
-  initializeComponents();
-  initializeWDT();
+  Serial.println("HELLO");
   initializeWifi();
   connectToNTP();
   printWiFiStatus();
+#ifndef TESTING
+  initializeComponents();
+  initializeWDT();
+#else 
+  Serial.println("beginning tests");
+  testAllTests();
+#endif
 }
 
 void loop() {
+#ifndef TESTING
   WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY;
   
   handleWiFiClient();
   int lightAmt = analogRead(photoresistorPin);
   state_inputs inputs = updateInputs();
   currentState = updateFSM(currentState, inputs);
+#endif
 }
 
 state_inputs updateInputs() {
@@ -54,11 +63,11 @@ State updateFSM(State currentState, state_inputs inputs) {
   State nextState = currentState;
   switch (currentState) {
     case VERIFY_LIGHT_STATUS:
-      if (inputs.light_amt >= lightThreshold) {
+      if (inputs.light_amt >= lightThreshold && goalLightsOn) {
         goalLightsOn = true;
         nextState = LIGHTS_ON_WAIT;
         Serial.println("Transition to LIGHTS_ON_WAIT");
-      } else if (inputs.light_amt < lightThreshold) {
+      } else if (inputs.light_amt < lightThreshold && !goalLightsOn) {
         goalLightsOn = false;
         nextState = LIGHTS_OFF_WAIT;
         Serial.println("Transition to LIGHTS_OFF_WAIT");
@@ -110,6 +119,7 @@ State updateFSM(State currentState, state_inputs inputs) {
 }
 
 void PressSwitch() {
+#ifndef TESTING
   Serial.println("Pressing the switch...");
   digitalWrite(mosfetGatePin, HIGH); // Turn on MOSFET
   myServo.write(0);
@@ -118,6 +128,7 @@ void PressSwitch() {
   delay(500);
   digitalWrite(mosfetGatePin, LOW); // Turn off MOSFET
   Serial.println("Switch pressed.");
+#endif
 }
 
 void updateMicReading(int decibel) {
@@ -170,7 +181,7 @@ int timeStringToMinutes(String timeStr) {
 
 bool twoClaps() {
   int clapCount = 0;
-  for (int i = 0; i < bufferSize - 1; i++) {
+  for (int i = 0; i < bufferSize; i++) {
     if (micReadings[i] > clapThreshold) {
       clapCount++;
     }

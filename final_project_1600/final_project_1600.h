@@ -4,7 +4,7 @@
 #include <WiFi101.h>
 #include <WiFiUdp.h>
 
-enum State { LIGHTS_OFF_WAIT, LIGHTS_ON_WAIT, VERIFY_LIGHT_STATUS, PRESS_BUTTON };
+enum State {VERIFY_LIGHT_STATUS, LIGHTS_OFF_WAIT,  LIGHTS_ON_WAIT, PRESS_BUTTON};
 
 /*
  * A struct to keep all three state inputs in one place
@@ -28,7 +28,7 @@ String getCurrentTime();
 String urlDecode(String str);
 
 unsigned long sendNTPpacket(IPAddress& address);
-
+unsigned long getSecsSince1900(); 
 
 
 
@@ -41,5 +41,4 @@ extern WiFiServer server;
 extern WiFiUDP Udp;
 extern const int NTP_PACKET_SIZE;
 extern byte packetBuffer[];
-
 #endif

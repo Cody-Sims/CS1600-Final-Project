@@ -172,3 +172,7 @@ String urlDecode(String str) {
     }
     return decodedString;
 }
+
+unsigned long getSecsSince1900() {
+  return secsSince1900;
+}
