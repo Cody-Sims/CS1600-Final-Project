@@ -23,10 +23,8 @@ void sendResponseToClient(WiFiClient &client);
 void printWiFiStatus();
 State updateFSM(State currentState, state_inputs inputs);
 state_inputs updateInputs();
-
 String getCurrentTime();
 String urlDecode(String str);
-
 unsigned long sendNTPpacket(IPAddress& address);
 unsigned long getSecsSince1900(); 
 

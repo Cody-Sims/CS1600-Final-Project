@@ -3,18 +3,20 @@
 #define TESTING
 
 // Light and Sound Sensor Variables
-const int lightThreshold = 500;
+const int lightThreshold = 400;
 const int bufferSize =  30;
 const int clapThreshold = 700;
 const int photoresistorPin = A1;
 const int micPin = A0;
-const int servoPin = 6;
+const int servoPin = 8;
 const int mosfetGatePin = 7;
+const int buttonPin = 0;
 
 // Mic Variables
 int micReadings[bufferSize] = {0};
 int idx = 0;
 bool goalLightsOn = true;
+bool systemOn = true;
 
 // Servo
 Servo myServo;
@@ -26,8 +28,9 @@ State currentState = VERIFY_LIGHT_STATUS;
 void setup() {
   Serial.begin(9600);
   delay(1000);
-  Serial.println("HELLO");
-  initializeWifi();
+  initializeComponents();
+  initializeWDT();
+  initializeWifi(); 
   connectToNTP();
   printWiFiStatus();
 #ifndef TESTING
@@ -42,14 +45,23 @@ void setup() {
 void loop() {
 #ifndef TESTING
   WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY;
-  
-  handleWiFiClient();
-  int lightAmt = analogRead(photoresistorPin);
-  state_inputs inputs = updateInputs();
-  currentState = updateFSM(currentState, inputs);
-#endif
+  if(systemOn) {
+    handleWiFiClient();
+    int lightAmt = analogRead(photoresistorPin);
+    state_inputs inputs = updateInputs();
+    currentState = updateFSM(currentState, inputs);
+  } 
+  if(!systemOn) {
+    Serial.println("System Off");
+    delay(2000);
+  }
 }
 
+/**
+ * Updates Sensor Inputs including clap detection, light amount, and mic buffer
+ * 
+ * @return the updated state inputs
+ */
 state_inputs updateInputs() {
   state_inputs newInputs;
   newInputs.light_amt = analogRead(photoresistorPin);
@@ -59,6 +71,13 @@ state_inputs updateInputs() {
 }
 
 
+/**
+ * Updates the FSM
+ * 
+ * @param currentState The current state of the FSM
+ * @param inputs The state inputs of the fsm
+ * @return the next state
+ */
 State updateFSM(State currentState, state_inputs inputs) {
   State nextState = currentState;
   switch (currentState) {
@@ -118,67 +137,49 @@ State updateFSM(State currentState, state_inputs inputs) {
   return nextState;
 }
 
+/**
+ * Presses the switch
+ */
 void PressSwitch() {
 #ifndef TESTING
   Serial.println("Pressing the switch...");
   digitalWrite(mosfetGatePin, HIGH); // Turn on MOSFET
-  myServo.write(0);
+  myServo.write(30);
   delay(500);
-  myServo.write(180);
+  myServo.write(0);
   delay(500);
   digitalWrite(mosfetGatePin, LOW); // Turn off MOSFET
   Serial.println("Switch pressed.");
 #endif
 }
 
+/**
+ * Updates the Mic Reading buffer
+ * 
+ * @param decibel the reading retrieved from the microphone
+ */
 void updateMicReading(int decibel) {
   micReadings[idx] = decibel;
   idx = (idx + 1) % bufferSize;
-  // if (decibel > clapThreshold) {
-  //   Serial.println(decibel);
-  // }
 }
 
-// Convert a time string to minutes since midnight
+/**
+ * Converts the Time string to minutes
+ * 
+ * @param timeStr the time represented as a string
+ */
 int timeStringToMinutes(String timeStr) {
   int hour = timeStr.substring(0, 2).toInt();
   int minute = timeStr.substring(3, 5).toInt();
   return hour * 60 + minute;
 }
 
-// bool shouldTurnOnLights(int lightAmt) {
-//     int currentTimeInMinutes = timeStringToMinutes(getCurrentTime());
-//     int wakeupTimeInMinutes = timeStringToMinutes(wakeup_time);
 
-//     if (currentTimeInMinutes == wakeupTimeInMinutes) {
-//         Serial.println(currentTimeInMinutes);
-//         Serial.println(wakeupTimeInMinutes);
-//         Serial.println("Turning on lights because it's wakeup time.");
-//         return true;
-//     } else if (goalLightsOn && (lightAmt < lightThreshold)) {
-//         Serial.println("Turning on lights because it's dark and goal is to have lights on.");
-//         return true;
-//     }
-//     return false;
-// }
-
-// bool shouldTurnOffLights(int lightAmt) {
-//     int currentTimeInMinutes = timeStringToMinutes(getCurrentTime());
-//     int sleepTimeInMinutes = timeStringToMinutes(sleep_time);
-
-//     if (currentTimeInMinutes == sleepTimeInMinutes) {
-//         Serial.println(currentTimeInMinutes);
-//         Serial.println(sleepTimeInMinutes);
-//         Serial.println("Turning off lights because it's sleep time.");
-//         return true;
-//     } else if (!goalLightsOn && (lightAmt > lightThreshold)) {
-//         Serial.println("Turning off lights because it's bright enough and goal is to have lights off.");
-//         return true;
-//     }
-//     return false;
-// }
-
-
+/**
+ * Readds through the micReadings buffer to determine if two claps have been detected
+ * 
+ * @return a boolean for clap detection 
+ */
 bool twoClaps() {
   int clapCount = 0;
   for (int i = 0; i < bufferSize; i++) {
@@ -186,9 +187,6 @@ bool twoClaps() {
       clapCount++;
     }
   }
-  // if (clapCount == 1) {
-  //   Serial.println("one claps detected.");
-  // }
   if (clapCount >= 2) {
     resetBuffer();
     Serial.println("Two claps detected.");
@@ -197,6 +195,9 @@ bool twoClaps() {
   return false;
 }
 
+/**
+ * Resets the microphone buffer
+ */
 void resetBuffer() {
   for (int i = 0; i < bufferSize; i++) {
     micReadings[i] = 0;
@@ -205,15 +206,24 @@ void resetBuffer() {
   Serial.println("Microphone buffer reset.");
 }
 
+
+/**
+ * Initializes the components
+ */
 void initializeComponents() {
   pinMode(photoresistorPin, INPUT);
   pinMode(micPin, INPUT);
   pinMode(mosfetGatePin, OUTPUT);
+  pinMode(buttonPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(buttonPin), buttonPressed, FALLING);
   digitalWrite(mosfetGatePin, LOW);
   myServo.attach(servoPin);
-  myServo.write(0);
+  myServo.write(30);
 }
 
+/**
+ * Initializes the Watchdog Timer
+ */
 void initializeWDT() {
   // Initialize WDT
   NVIC_DisableIRQ(WDT_IRQn);
@@ -236,17 +246,24 @@ void initializeWDT() {
                       GCLK_CLKCTRL_ID(3);
 
   // Configure and enable WDT
-  WDT->CONFIG.reg = WDT_CONFIG_PER(11);
-  WDT->EWCTRL.reg = WDT_EWCTRL_EWOFFSET(10);
+  WDT->CONFIG.reg = WDT_CONFIG_PER(12);
+  WDT->EWCTRL.reg = WDT_EWCTRL_EWOFFSET(11);
   WDT->CTRL.reg = WDT_CTRL_ENABLE;
   WDT->INTENSET.reg = WDT_INTENSET_EW; // Enable early warning interrupt
 }
 
-// WDT interrupt service routine
+/**
+ * Watch Dog Service Routine handler
+ */
 void WDT_Handler() {
   // Clear interrupt register flag
   WDT->INTFLAG.reg = WDT_INTFLAG_EW;
   Serial.println("Watchdog timer interrupt triggered!");
 }
 
-
+/**
+ * The interrupt for the Button
+ */
+void buttonPressed() {
+  systemOn = !systemOn;
+}
