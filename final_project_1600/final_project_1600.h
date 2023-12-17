@@ -7,7 +7,8 @@
 enum State {VERIFY_LIGHT_STATUS, LIGHTS_OFF_WAIT,  LIGHTS_ON_WAIT, PRESS_BUTTON};
 
 /*
- * A struct to keep all three state inputs in one place
+ A struct to keep all three state inputs in one place. Time is also an input, 
+ but we just call milis() from within the FSM
  */
 typedef struct {
   int light_amt;
@@ -26,7 +27,8 @@ state_inputs updateInputs();
 String getCurrentTime();
 String urlDecode(String str);
 unsigned long sendNTPpacket(IPAddress& address);
-unsigned long getSecsSince1900(); 
+unsigned long getSecsSince1900();
+void setSecsSince1900(unsigned long time);
 
 
 
@@ -39,4 +41,5 @@ extern WiFiServer server;
 extern WiFiUDP Udp;
 extern const int NTP_PACKET_SIZE;
 extern byte packetBuffer[];
+extern int button_pushes;
 #endif

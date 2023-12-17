@@ -191,6 +191,11 @@ String urlDecode(String str) {
     return decodedString;
 }
 
+// FOR TESTING ONLY
 unsigned long getSecsSince1900() {
   return secsSince1900;
+}
+
+void setSecsSince1900(unsigned long time) {
+   secsSince1900 = time;
 }

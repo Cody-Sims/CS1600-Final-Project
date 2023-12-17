@@ -28,12 +28,10 @@ State currentState = VERIFY_LIGHT_STATUS;
 void setup() {
   Serial.begin(9600);
   delay(1000);
-  initializeComponents();
-  initializeWDT();
   initializeWifi(); 
   connectToNTP();
-  printWiFiStatus();
 #ifndef TESTING
+  printWiFiStatus();
   initializeComponents();
   initializeWDT();
 #else 
@@ -60,7 +58,8 @@ void loop() {
 
 /**
  * Updates Sensor Inputs including clap detection, light amount, and mic buffer
- * 
+ * millis() is called within getCurrentTime() in the FSM
+ *
  * @return the updated state inputs
  */
 state_inputs updateInputs() {
@@ -141,8 +140,8 @@ State updateFSM(State currentState, state_inputs inputs) {
 /**
  * Presses the switch
  */
-void PressSwitch() {
 #ifndef TESTING
+void PressSwitch() {
   Serial.println("Pressing the switch...");
   digitalWrite(mosfetGatePin, HIGH); // Turn on MOSFET
   myServo.write(30);
@@ -151,8 +150,12 @@ void PressSwitch() {
   delay(500);
   digitalWrite(mosfetGatePin, LOW); // Turn off MOSFET
   Serial.println("Switch pressed.");
-#endif
 }
+#else 
+void PressSwitch() {
+  button_pushes += 1;
+}
+#endif
 
 /**
  * Updates the Mic Reading buffer
